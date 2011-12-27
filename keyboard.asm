@@ -1,4 +1,4 @@
-.include "C:\PROGRA~2\VMLAB\include\m16def.inc"
+.include "C:\VMLAB\include\m16def.inc"
 
 .DEF KEYBOARD_STATUS = r25
 .EQU MULTIPLE_CLICK_BIT = 0
@@ -264,52 +264,58 @@ forever:
      rjmp forever
 
      cbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
-     lds r18, BUFFER_READ_POSITION
-     lds r17, BUFFER_WRITE_POSITION
+     lds r24, BUFFER_READ_POSITION
+     lds r23, BUFFER_WRITE_POSITION
      ldi XL, low(BUFFER)
      ldi XH, high(BUFFER)
-     cpi r18, -1
+     cpi r24, -1
      breq write_letter
   write_current_letter:
-     add XL, r18
+     add XL, r24
      ldi r16, 0
      adc XH, r16
      cbi LCD_RS_PORT, LCD_RS
      ldi r16, 0b00010000
      call lcd_send_byte
      sbi LCD_RS_PORT, LCD_RS
-     dec r18
+     dec r24
   write_letter:
-     inc r18
-     ld r19, X+
-     mov r20, r19
-     cbr r19, 0xF0 ;times
-     swap r20
-     cbr r20, 0xF0 ;key
-     ldi r16, 0
-     ldi ZL, low(keyboard_layout << 1)
-     ldi ZH, high(keyboard_layout << 1)
-     lsl r20
-     add ZL, r20
-     adc ZH, r16
-     lpm r16, Z+
-     lpm ZH, Z
-     mov ZL, r16
-     lsl ZL
-     rol ZH
-     ldi r16, 0
-     add ZL, r19
-     adc ZH, r16
-     lpm r16, Z
+     inc r24
+     ld r16, X+
+     mov r17, r16
+     cbr r17, 0xF0 ;times
+     swap r16
+     cbr r16, 0xF0 ;key
+     call get_button
 
      ;; go 1 letter back
      call lcd_send_byte
-     cp r18, r17
+     cp r24, r23
      brlo write_letter
-     sts BUFFER_READ_POSITION, r17
+     sts BUFFER_READ_POSITION, r23
 
 
 rjmp forever
+
+get_button: ; r16 - key number, r17 times clicked (0 == number of signs)
+            ; result in r16
+            ; USES WITHOUT PUSH-POP r16, r17, ZL, ZH
+    ldi ZL, low(keyboard_layout << 1)
+    ldi ZH, high(keyboard_layout << 1)
+    lsl r16
+    add ZL, r16
+    ldi r16, 0
+    adc ZH, r16
+    lpm r16, Z+
+    lpm ZH, Z
+    mov ZL, r16
+    lsl ZL
+    rol ZH
+    ldi r16, 0
+    add ZL, r17
+    adc ZH, r16
+    lpm r16, Z
+    ret
 
 button_0:
     .DB 5, ",.!?1"
@@ -348,3 +354,4 @@ keyboard_layout:
     .DW button_4, button_5, button_6, button_7
     .DW button_8, button_9, button_10, button_11
     .DW button_12, button_13, button_14, button_15
+
