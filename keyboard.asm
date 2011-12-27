@@ -1,0 +1,350 @@
+.include "C:\PROGRA~2\VMLAB\include\m16def.inc"
+
+.DEF KEYBOARD_STATUS = r25
+.EQU MULTIPLE_CLICK_BIT = 0
+.EQU BUFFER_CHANGED_BIT = 1
+
+.DEF MULTIPLE_CLICK = r3
+.DEF BUFFER_CHANGED = r2
+
+.EQU KB_DDR = DDRA
+.EQU KB_PORT = PORTA
+.EQU KB_PIN = PINA
+
+.EQU ROW0 = PA0
+.EQU ROW1 = PA1
+.EQU ROW2 = PA2
+.EQU ROW3 = PA3
+.EQU COL0 = PA4
+.EQU COL1 = PA5
+.EQU COL2 = PA6
+.EQU COL3 = PA7
+
+.CSEG
+reset:
+   rjmp start
+
+
+.ORG INT2addr
+    rjmp key_pressed
+
+.ORG OVF0addr
+    rjmp check_key_pressed
+
+.ORG OC1Aaddr
+    rjmp multiple_time_over
+
+.ORG 0x60
+.DSEG
+    BUFFER_WRITE_POSITION: .BYTE 1 ; where write
+    BUFFER_READ_POSITION: .BYTE 1  ; where read
+    BUFFER: .BYTE 16               ; 2 nibbles - higher buttonnumber lower timesclicked
+
+.CSEG
+.include "wait.asm"
+.include "lcd.asm"
+
+multiple_time_over:
+    push r16
+    in r16, sreg
+    push r16
+    push r17
+    cbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT
+
+    ;stop timer1
+    in r16, TCCR1B
+    cbr r16, 1 << CS12 | 1 << CS11 | 1 << CS10
+    out TCCR1B, r16
+
+    pop r17
+    pop r16
+    out sreg, r16
+    pop r16
+    reti
+
+check_key_pressed:
+    push r16
+    in r16, sreg
+    push r16
+    push r17
+    push r18
+    push r19
+    push XH;
+    push XL;
+    ; turn off timer0
+    ldi r16, 0
+    out TCCR0, r16
+    ; reset counter value
+    ldi r16, 0
+    out TCNT0, r16
+    call keyboard_scan
+    ;clear int2
+    ldi r17, 1 << INTF2
+    out GIFR, r17
+
+    sbrc r16, 0 ; if set then keyboard_scan returned no key
+    rjmp check_key_pressed_clean
+
+    lds r18, BUFFER_WRITE_POSITION     ;  r18 = BUFFER_WRITE_POSITON
+    ldi XH, high(BUFFER)               ;  X = BUFFER + BUFFER_WRITE_POSITION
+    ldi XL, low(BUFFER)                ;
+    cpi r18, -1                        ;  if BUFFER_WRITE_POSITION == -1 -> buffer empty
+    breq new_click                     ;
+    add XL, r18                        ;
+    ldi r17, 0                         ;
+    adc XH, r17                        ;
+    ld r17, X+                         ;  r17 = BUFFER[BUFFER_WRITE_POSITION]
+    sbrs KEYBOARD_STATUS, MULTIPLE_CLICK_BIT ;
+    rjmp new_click                     ;
+    mov r19, r17                       ;  r19 = BUFFER[BUFFER_WRITE_POSITION].buttonNumber
+    cbr r19, 0b00001111                ;
+    cp r19, r16                        ;
+    brne new_click                     ;
+    mov r16, r17                       ;
+    inc r16                            ;
+    st  -X, r16                        ;  save in last place
+    rjmp after_click                   ;
+    new_click:                         ;
+        inc r18                        ;
+        sbrc r18, 4                    ;
+        ldi r18, 15                    ;
+        sts BUFFER_WRITE_POSITION, r18 ;
+        inc r16                        ;
+        st X, r16
+    after_click:
+
+    ;reset timer1 value
+    ldi r17,0
+    ldi r16,0
+    out TCNT1H,r17
+    out TCNT1L,r16
+    ;run TIMER1 <- if not timedout
+    in r16, TCCR1B
+    sbr r16, 1 << WGM12 | 1 << CS12 | 1 << CS10
+    out TCCR1B, r16
+
+    sbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT | 1 << BUFFER_CHANGED_BIT
+    check_key_pressed_clean:
+    pop XL
+    pop XH
+    pop r19
+    pop r18
+    pop r17
+    pop r16
+    out sreg, r16
+    pop r16
+    reti
+
+key_pressed:
+    push r16
+    in r16, sreg
+    push r16
+	 ldi r16, 1 << CS00 | 1 << CS02
+	 out TCCR0, r16
+    pop r16
+    out sreg, r16
+    pop r16
+    reti
+
+
+keyboard_init: ;set rows as input, cols as output
+    push r16
+    ldi r16, 1 << COL0 | 1 << COL1 | 1 << COL2 | 1 << COL3
+    out KB_DDR, r16
+    ldi r16, 1 << ROW0 | 1 << ROW1 | 1 << ROW2 | 1 << ROW3
+    out KB_PORT, r16
+    pop r16
+    ret
+
+keyboard_scan: ; key in r16 ; uses r16, r17
+    ; test_rows
+    ldi r17, -58
+    sbis KB_PIN, ROW0
+    subi r17, -41
+    sbis KB_PIN, ROW1
+    subi r17, -45
+    sbis KB_PIN, ROW2
+    subi r17, -49
+    sbis KB_PIN, ROW3
+    subi r17, -53
+    ; change rows <-> cols
+    ldi r16, 1 << ROW0 | 1 << ROW1 | 1 << ROW2 | 1 << ROW3
+    out KB_DDR, r16
+    ldi r16, 1 << COL0 | 1 << COL1 | 1 << COL2 | 1 << COL3
+    out KB_PORT, r16
+    ; wait 1us
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    ; test cols
+    sbis KB_PIN, COL0
+    subi r17, -17
+    sbis KB_PIN, COL1
+    subi r17, -18
+    sbis KB_PIN, COL2
+    subi r17, -19
+    sbis KB_PIN, COL3
+    subi r17, -20
+    ; change rows <-> cols //reset
+    ldi r16, 1 << COL0 | 1 << COL1 | 1 << COL2 | 1 << COL3
+    out KB_DDR, r16
+    ldi r16, 1 << ROW0 | 1 << ROW1 | 1 << ROW2 | 1 << ROW3
+    out KB_PORT, r16
+    ; check if result correct
+    ldi r16, 1
+    cpi r17, 16
+    brsh no_key_pressed
+    swap r17
+    mov r16, r17
+  no_key_pressed:
+    ret
+
+start:
+    ;initialize stack
+    ldi r16, low(RAMEND)
+    out spl, r16
+    ldi r16, high(RAMEND)
+    out sph, r16
+    call lcd_init
+    call keyboard_init
+
+    ; int2 on 1-->0
+    in r16, MCUCSR
+    cbr r16, 1 << ISC2
+    out MCUCSR, r16
+    ; enable int2 interruption
+    in r16, GICR
+    sbr r16, 1 << INT2
+    out GICR, r16
+
+    ; reset int2 interrupion
+    ldi r16, 1 << INTF2
+    out GIFR, r16
+
+    ; timer0
+    in r16, TIMSK
+    sbr r16, 1 << TOIE0
+    out TIMSK, r16
+
+    ; timer 1
+    in r16, TIMSK
+    sbr r16, 1 << OCIE1A
+    out TIMSK, r16
+    ldi r16, LOW(3000)
+    ldi r17, HIGH(3000)
+    out OCR1AH, r17
+    out OCR1AL, r16
+
+    ;reset timer1 value
+    ldi r17,0
+    ldi r16,0
+    out TCNT1H,r17
+    out TCNT1L,r16
+
+    ;stop timer1
+    in r16, TCCR1B
+    cbr r16, 1 << CS12 | 1 << CS11 | 1 << CS10
+    out TCCR1B, r16
+
+    ; buffer;
+    ldi r16, -1
+    sts BUFFER_WRITE_POSITION, r16
+    sts BUFFER_READ_POSITION, r16
+    ; click registers
+    ldi KEYBOARD_STATUS, 0
+    sei
+
+forever:
+     sbrs KEYBOARD_STATUS, BUFFER_CHANGED_BIT
+     rjmp forever
+
+     cbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
+     lds r18, BUFFER_READ_POSITION
+     lds r17, BUFFER_WRITE_POSITION
+     ldi XL, low(BUFFER)
+     ldi XH, high(BUFFER)
+     cpi r18, -1
+     breq write_letter
+  write_current_letter:
+     add XL, r18
+     ldi r16, 0
+     adc XH, r16
+     cbi LCD_RS_PORT, LCD_RS
+     ldi r16, 0b00010000
+     call lcd_send_byte
+     sbi LCD_RS_PORT, LCD_RS
+     dec r18
+  write_letter:
+     inc r18
+     ld r19, X+
+     mov r20, r19
+     cbr r19, 0xF0 ;times
+     swap r20
+     cbr r20, 0xF0 ;key
+     ldi r16, 0
+     ldi ZL, low(keyboard_layout << 1)
+     ldi ZH, high(keyboard_layout << 1)
+     lsl r20
+     add ZL, r20
+     adc ZH, r16
+     lpm r16, Z+
+     lpm ZH, Z
+     mov ZL, r16
+     lsl ZL
+     rol ZH
+     ldi r16, 0
+     add ZL, r19
+     adc ZH, r16
+     lpm r16, Z
+
+     ;; go 1 letter back
+     call lcd_send_byte
+     cp r18, r17
+     brlo write_letter
+     sts BUFFER_READ_POSITION, r17
+
+
+rjmp forever
+
+button_0:
+    .DB 5, ",.!?1"
+button_1:
+    .DB 4, "abc2"
+button_2:
+    .DB 4, "def3"
+button_3:
+
+button_4:
+    .DB 4, "ghi4"
+button_5:
+    .DB 4, "jkl5"
+button_6:
+    .DB 4, "mno6"
+button_7:
+
+button_8:
+    .DB 5, "pqrs7"
+button_9:
+    .DB 4, "tuv8"
+button_10:
+    .DB 5, "wxyz9"
+button_11:
+
+button_12:
+    .DB 5, "*+-()"
+button_13:
+    .DB 2, " 0"
+button_14:
+    .DB 1, "#"
+button_15:
+
+keyboard_layout:
+    .DW button_0, button_1, button_2, button_3
+    .DW button_4, button_5, button_6, button_7
+    .DW button_8, button_9, button_10, button_11
+    .DW button_12, button_13, button_14, button_15

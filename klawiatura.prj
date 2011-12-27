@@ -1,0 +1,37 @@
+; ************************************************************
+; PROJECT:
+; AUTHOR:
+; ************************************************************
+
+; Micro + software running
+; ------------------------------------------------------------
+.MICRO "ATmega16"
+.PROGRAM "keyboard.asm" "lcd.asm" "wait.asm"
+.TARGET "klawiatura.hex"
+
+.TRACE              ; Activate micro trace
+
+; Following lines are optional; if not included
+; exactly these values are taken by default
+; ------------------------------------------------------------
+.POWER VDD=5 VSS=0  ; Power nodes
+.CLOCK 8meg         ; Micro clock
+.STORE 250m         ; Trace (micro+signals) storage time
+
+; Micro nodes: RESET, AREF, PA0-PA7, PB0-PB7, PC0-PC7, PD0-PD7, ACO, TIM1OVF
+; Define here the hardware around the micro
+; ------------------------------------------------------------
+
+
+XLCD LCD(16 2 250k) pd0 gnd pd1 pd5 pd4 pd3 pd2 gnd gnd gnd gnd
+
+XKB  KEY4x4 PA0 PA1 PA2 PA3 PA4 PA5 PA6 PA7
+
+X ND2 PA0 PA1 N1
+X ND2 PA2 PA3 N2
+X ND2 N1 VDD N3
+X ND2 N2 VDD N4
+X ND2 N3 N4 N5
+X ND2 N5 VDD PB2
+
+
