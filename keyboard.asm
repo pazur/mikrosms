@@ -71,6 +71,8 @@ check_key_pressed:
     push r19
     push XH;
     push XL;
+    push ZH
+    push ZL
     ; turn off timer0
     ldi r16, 0
     out TCCR0, r16
@@ -100,9 +102,18 @@ check_key_pressed:
     cbr r19, 0b00001111                ;
     cp r19, r16                        ;
     brne new_click                     ;
-    mov r16, r17                       ;
-    inc r16                            ;
-    st  -X, r16                        ;  save in last place
+    mov r18, r17
+    cbr r18, 0b11110000
+    ldi r17, 0
+    swap r16
+    call get_button      ;in r16 max clicks
+    cp r18, r16
+    brlo inc_click_count
+    ldi r18, 0
+    inc_click_count:
+    inc r18
+    add r18, r19                       ;
+    st  -X, r18                        ;  save in last place
     rjmp after_click                   ;
     new_click:                         ;
         inc r18                        ;
@@ -125,6 +136,8 @@ check_key_pressed:
 
     sbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT | 1 << BUFFER_CHANGED_BIT
     check_key_pressed_clean:
+    pop ZL
+    pop ZH
     pop XL
     pop XH
     pop r19
