@@ -1,1 +1,13 @@
-Projekt z mikrokontrolerów.
+Projekt z mikrokontrolerów
+==========================
+
+DZIAŁA:
+* wprowadzanie znaków
+* wyświetlanie odpowiednich znaków na klawiaturze
+* zapętlanie przy wielu naciśnięciach (tj. abc2abc2ab...)
+
+TODO:
+* klawisze ABCD
+** usuwanie znaków
+** uppercase (?)
+** funkcja dla 3 przycisku (czwarty będzie send)
