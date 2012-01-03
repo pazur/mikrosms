@@ -70,10 +70,8 @@ check_key_pressed:
     push r17
     push r18
     push r19
-    push XH;
-    push XL;
-    push ZH
-    push ZL
+    push XH
+    push XL
     ; turn off timer0
     ldi r16, 0
     out TCCR0, r16
@@ -88,24 +86,23 @@ check_key_pressed:
     sbrc r16, 0 ; if set then keyboard_scan returned no key
     rjmp check_key_pressed_clean
 
-    mov r17, r16
-    swap r17
-    cbr r17, 0b11110000
-    cpi r17, 3                         ; delete!
-    brne char_clicked
     lds r18, BUFFER_WRITE_POSITION
-    lds r17, BUFFER_SYNC_POSITION
-    cpi r18, -1
-    breq check_key_pressed_clean
-    dec r18
-    sts BUFFER_WRITE_POSITION, r18
-    cp r17, r18
-    brlt after_click
-    sts BUFFER_SYNC_POSITION, r18
-    rjmp after_click
-    char_clicked:
 
-    lds r18, BUFFER_WRITE_POSITION     ;  r18 = BUFFER_WRITE_POSITON
+    mov r17, r16
+    cbr r17, 0b00001111
+    cpi r17, 3 << 4                    ; delete button
+    brne char_clicked
+        cpi r18, -1
+        breq check_key_pressed_clean
+        sbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
+        dec r18
+        sts BUFFER_WRITE_POSITION, r18
+        lds r17, BUFFER_SYNC_POSITION
+        cp r17, r18
+        brlt check_key_pressed_clean
+        sts BUFFER_SYNC_POSITION, r18
+        rjmp check_key_pressed_clean
+    char_clicked:
     ldi XH, high(BUFFER)               ;  X = BUFFER + BUFFER_WRITE_POSITION
     ldi XL, low(BUFFER)                ;
     cpi r18, -1                        ;  if BUFFER_WRITE_POSITION == -1 -> buffer empty
@@ -140,8 +137,8 @@ check_key_pressed:
         sts BUFFER_WRITE_POSITION, r18 ;
         inc r16                        ;
         st X, r16
-    after_click:
 
+    after_click:
     ;reset timer1 value
     ldi r17,0
     ldi r16,0
@@ -154,8 +151,6 @@ check_key_pressed:
 
     sbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT | 1 << BUFFER_CHANGED_BIT
     check_key_pressed_clean:
-    pop ZL
-    pop ZH
     pop XL
     pop XH
     pop r19
@@ -362,7 +357,8 @@ rjmp forever
 
 get_button: ; r16 - key number, r17 times clicked (0 == number of signs)
             ; result in r16
-            ; USES WITHOUT PUSH-POP r16, r17, ZL, ZH
+    push ZL
+    push ZH
     ldi ZL, low(keyboard_layout << 1)
     ldi ZH, high(keyboard_layout << 1)
     lsl r16
@@ -378,6 +374,8 @@ get_button: ; r16 - key number, r17 times clicked (0 == number of signs)
     add ZL, r17
     adc ZH, r16
     lpm r16, Z
+    pop ZH
+    pop ZL
     ret
 
 button_0:
