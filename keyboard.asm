@@ -29,32 +29,30 @@ reset:
     rjmp check_key_pressed
 
 .ORG OC1Aaddr
-    rjmp multiple_time_over
+    rjmp multiple_click_time_over
 
 .ORG 0x60
 .DSEG
     BUFFER_WRITE_POSITION: .BYTE 1 ; where write
     BUFFER_READ_POSITION: .BYTE 1  ; where read
-    BUFFER_SYNC_POSITION: .BYTE 1  ;
+    BUFFER_SYNC_POSITION: .BYTE 1  
     BUFFER: .BYTE 16               ; 2 nibbles - higher buttonnumber lower timesclicked
 
 .CSEG
 .include "wait.asm"
 .include "lcd.asm"
 
-multiple_time_over:
+multiple_click_time_over:
     push r16
     in r16, sreg
     push r16
-    push r17
-    cbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT
 
+    cbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT
     ;stop timer1
     in r16, TCCR1B
     cbr r16, 1 << CS12 | 1 << CS11 | 1 << CS10
     out TCCR1B, r16
 
-    pop r17
     pop r16
     out sreg, r16
     pop r16
@@ -69,6 +67,7 @@ check_key_pressed:
     push r19
     push XH
     push XL
+
     ; turn off timer0
     ldi r16, 0
     out TCCR0, r16
@@ -85,11 +84,9 @@ check_key_pressed:
 
     lds r18, BUFFER_WRITE_POSITION
 
-    mov r17, r16
-    cbr r17, 0b00001111
-    cpi r17, 3 << 4                    ; delete button
+    cpi r16, 3 << 4                    ; delete button
     brne check_send_button
-        cpi r18, -1
+        cpi r18, -1                    ; buffer was empty
         breq check_key_pressed_clean
         sbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
         dec r18
@@ -100,7 +97,7 @@ check_key_pressed:
         sts BUFFER_SYNC_POSITION, r18
         rjmp check_key_pressed_clean
     check_send_button:
-    cpi r17, 15 << 4
+    cpi r16, 15 << 4
     brne char_clicked
         ; TODO RUN SEND
         ldi r16, -1
@@ -157,6 +154,7 @@ check_key_pressed:
     out TCCR1B, r16
 
     sbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT | 1 << BUFFER_CHANGED_BIT
+    
     check_key_pressed_clean:
     pop XL
     pop XH
@@ -170,10 +168,12 @@ check_key_pressed:
 
 key_pressed:
     push r16
-    in r16, sreg
-    push r16
-	 ldi r16, 1 << CS00 | 1 << CS02
-	 out TCCR0, r16
+    in r16, sreg   ;probably noy needed
+    push r16       ;because ldi and out dont change SREG
+
+    ldi r16, 1 << CS00 | 1 << CS02
+    out TCCR0, r16
+
     pop r16
     out sreg, r16
     pop r16
@@ -308,6 +308,7 @@ forever:
      mov r16, r22
      inc r16
      sbr r16, 1 << 7
+     mov r17, r16
      call lcd_send_byte
      sbi LCD_RS_PORT, LCD_RS
      ldi r16, ' '
@@ -318,9 +319,7 @@ forever:
      brne clear_char
   set_position:
      cbi LCD_RS_PORT, LCD_RS
-     mov r16, r22
-     inc r16
-     sbr r16, 1 << 7
+     mov r16, r17
      call lcd_send_byte
      sbi LCD_RS_PORT, LCD_RS
      cpi r23, -1
