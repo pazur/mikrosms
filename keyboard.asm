@@ -1,4 +1,4 @@
-.include "C:\VMLAB\include\m16def.inc"
+.include "C:\PROGRA~2\VMLAB\include\m16def.inc"
 
 .DEF KEYBOARD_STATUS = r25
 .EQU MULTIPLE_CLICK_BIT = 0
@@ -38,6 +38,7 @@ reset:
 .DSEG
     BUFFER_WRITE_POSITION: .BYTE 1 ; where write
     BUFFER_READ_POSITION: .BYTE 1  ; where read
+    BUFFER_SYNC_POSITION: .BYTE 1  ;
     BUFFER: .BYTE 16               ; 2 nibbles - higher buttonnumber lower timesclicked
 
 .CSEG
@@ -86,6 +87,23 @@ check_key_pressed:
 
     sbrc r16, 0 ; if set then keyboard_scan returned no key
     rjmp check_key_pressed_clean
+
+    mov r17, r16
+    swap r17
+    cbr r17, 0b11110000
+    cpi r17, 3                         ; delete!
+    brne char_clicked
+    lds r18, BUFFER_WRITE_POSITION
+    lds r17, BUFFER_SYNC_POSITION
+    cpi r18, -1
+    breq check_key_pressed_clean
+    dec r18
+    sts BUFFER_WRITE_POSITION, r18
+    cp r17, r18
+    brlt after_click
+    sts BUFFER_SYNC_POSITION, r18
+    rjmp after_click
+    char_clicked:
 
     lds r18, BUFFER_WRITE_POSITION     ;  r18 = BUFFER_WRITE_POSITON
     ldi XH, high(BUFFER)               ;  X = BUFFER + BUFFER_WRITE_POSITION
@@ -268,6 +286,7 @@ start:
     ldi r16, -1
     sts BUFFER_WRITE_POSITION, r16
     sts BUFFER_READ_POSITION, r16
+    sts BUFFER_SYNC_POSITION, r16
     ; click registers
     ldi KEYBOARD_STATUS, 0
     sei
@@ -275,12 +294,36 @@ start:
 forever:
      sbrs KEYBOARD_STATUS, BUFFER_CHANGED_BIT
      rjmp forever
-
      cbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
      lds r24, BUFFER_READ_POSITION
      lds r23, BUFFER_WRITE_POSITION
+     lds r22, BUFFER_SYNC_POSITION
      ldi XL, low(BUFFER)
      ldi XH, high(BUFFER)
+     cp r22, r24
+     breq write_buffer
+     cbi LCD_RS_PORT, LCD_RS
+     mov r16, r22
+     inc r16
+     sbr r16, 1 << 7
+     call lcd_send_byte
+     sbi LCD_RS_PORT, LCD_RS
+     ldi r16, ' '
+  clear_char:
+     call lcd_send_byte
+     dec r24
+     cp r22, r24
+     brne clear_char
+  set_position:
+     cbi LCD_RS_PORT, LCD_RS
+     mov r16, r22
+     inc r16
+     sbr r16, 1 << 7
+     call lcd_send_byte
+     sbi LCD_RS_PORT, LCD_RS
+     cpi r23, -1
+     breq buffer_written_to_lcd
+  write_buffer:
      cpi r24, -1
      breq write_letter
   write_current_letter:
@@ -305,8 +348,15 @@ forever:
      call lcd_send_byte
      cp r24, r23
      brlo write_letter
+  buffer_written_to_lcd:
      sts BUFFER_READ_POSITION, r23
-
+     cli
+     lds r16, BUFFER_SYNC_POSITION
+     cp r16, r22
+     brne sync_changed
+     sts BUFFER_SYNC_POSITION, r23
+  sync_changed:
+     sei
 
 rjmp forever
 
@@ -367,4 +417,6 @@ keyboard_layout:
     .DW button_4, button_5, button_6, button_7
     .DW button_8, button_9, button_10, button_11
     .DW button_12, button_13, button_14, button_15
+
+
 
