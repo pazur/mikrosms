@@ -387,25 +387,25 @@ get_button: ; r16 - key number, r17 times clicked (0 == number of signs)
 button_0:
     .DB 5, ",.!?1"
 button_1:
-    .DB 4, "abc2"
+    .DB 4, "ABC2"
 button_2:
-    .DB 4, "def3"
+    .DB 4, "DEF3"
 button_3:
 
 button_4:
-    .DB 4, "ghi4"
+    .DB 4, "GHI4"
 button_5:
-    .DB 4, "jkl5"
+    .DB 4, "JKL5"
 button_6:
-    .DB 4, "mno6"
+    .DB 4, "MNO6"
 button_7:
 
 button_8:
-    .DB 5, "pqrs7"
+    .DB 5, "PQRS7"
 button_9:
-    .DB 4, "tuv8"
+    .DB 4, "TUV8"
 button_10:
-    .DB 5, "wxyz9"
+    .DB 5, "WXYZ9"
 button_11:
 
 button_12:
