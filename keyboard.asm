@@ -91,7 +91,7 @@ check_key_pressed:
     mov r17, r16
     cbr r17, 0b00001111
     cpi r17, 3 << 4                    ; delete button
-    brne char_clicked
+    brne check_send_button
         cpi r18, -1
         breq check_key_pressed_clean
         sbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
@@ -102,6 +102,16 @@ check_key_pressed:
         brlt check_key_pressed_clean
         sts BUFFER_SYNC_POSITION, r18
         rjmp check_key_pressed_clean
+    check_send_button:
+    cpi r17, 15 << 4
+    brne char_clicked
+        ; TODO RUN SEND
+        ldi r16, -1
+        sts BUFFER_WRITE_POSITION, r16
+        sts BUFFER_SYNC_POSITION, r16
+        sbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
+        rjmp check_key_pressed_clean
+
     char_clicked:
     ldi XH, high(BUFFER)               ;  X = BUFFER + BUFFER_WRITE_POSITION
     ldi XL, low(BUFFER)                ;
