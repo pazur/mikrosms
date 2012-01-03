@@ -35,7 +35,7 @@ reset:
 .DSEG
     BUFFER_WRITE_POSITION: .BYTE 1 ; where write
     BUFFER_READ_POSITION: .BYTE 1  ; where read
-    BUFFER_SYNC_POSITION: .BYTE 1  
+    BUFFER_SYNC_POSITION: .BYTE 1
     BUFFER: .BYTE 16               ; 2 nibbles - higher buttonnumber lower timesclicked
 
 .CSEG
@@ -87,8 +87,11 @@ check_key_pressed:
     cpi r16, 3 << 4                    ; delete button
     brne check_send_button
         cpi r18, -1                    ; buffer was empty
-        breq check_key_pressed_clean
+        BRNE delete_letter_from_buffer
+        jmp check_key_pressed_clean
+        delete_letter_from_buffer:
         sbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
+        cbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT
         dec r18
         sts BUFFER_WRITE_POSITION, r18
         lds r17, BUFFER_SYNC_POSITION
@@ -100,11 +103,15 @@ check_key_pressed:
     cpi r16, 15 << 4
     brne char_clicked
         ; TODO RUN SEND
+        cpi r18, -1
+        BREQ check_key_pressed_clean
         ldi r16, -1
         sts BUFFER_WRITE_POSITION, r16
         sts BUFFER_SYNC_POSITION, r16
         sbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
+        cbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT
         rjmp check_key_pressed_clean
+
 
     char_clicked:
     ldi XH, high(BUFFER)               ;  X = BUFFER + BUFFER_WRITE_POSITION
@@ -154,7 +161,7 @@ check_key_pressed:
     out TCCR1B, r16
 
     sbr KEYBOARD_STATUS, 1 << MULTIPLE_CLICK_BIT | 1 << BUFFER_CHANGED_BIT
-    
+
     check_key_pressed_clean:
     pop XL
     pop XH
@@ -421,6 +428,7 @@ keyboard_layout:
     .DW button_4, button_5, button_6, button_7
     .DW button_8, button_9, button_10, button_11
     .DW button_12, button_13, button_14, button_15
+
 
 
 
