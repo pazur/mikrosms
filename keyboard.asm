@@ -143,8 +143,12 @@ check_key_pressed:
     rjmp after_click                   ;
     new_click:                         ;
         inc r18                        ;
-        sbrc r18, 4                    ;
+        sbrs r18, 4                    ;
+        rjmp save_new_click
         ldi r18, 15                    ;
+        subi XL, 1
+        sbci XH, 0
+        save_new_click:
         sts BUFFER_WRITE_POSITION, r18 ;
         inc r16                        ;
         st X, r16
@@ -406,7 +410,7 @@ button_5:
 button_6:
     .DB 4, "MNO6"
 button_7:
-
+    .DB 1, ":"
 button_8:
     .DB 5, "PQRS7"
 button_9:
@@ -414,7 +418,7 @@ button_9:
 button_10:
     .DB 5, "WXYZ9"
 button_11:
-
+    .DB 1, ")"
 button_12:
     .DB 5, "*+-()"
 button_13:
@@ -428,7 +432,5 @@ keyboard_layout:
     .DW button_4, button_5, button_6, button_7
     .DW button_8, button_9, button_10, button_11
     .DW button_12, button_13, button_14, button_15
-
-
 
 
