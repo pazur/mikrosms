@@ -294,13 +294,28 @@ i2c_receive_int:
 	POP R16
 	RETI
 
+
+
 i2c_received_start:	
+	LDI R16, 0
+	STS RCV_BUFFER_LEN, R16
 	RJMP i2c_receive_end
 
 i2c_received_data:	
+	LDS R16, RCV_BUFFER_LEN
+	LDI XH, HIGH(RCV_BUFFER)
+	LDI XL, LOW(RCV_BUFFER)
+	ADD XL, R16
+	LDI R17, 0
+	ADC XH, R17	
+	ST X, I2C_TEMP	
+	INC R16
+	STS RCV_BUFFER_LEN, R16
 	RJMP i2c_receive_end
 
-i2c_received_stop:
+i2c_received_stop:		
+	SER R16
+	MOV R0, R16
 	RJMP i2c_receive_end
 
 
@@ -320,6 +335,7 @@ start:
 	LDI R16, 1 << TWEA | 1 << TWEN | 1 << TWIE ;| 1 << TWSTO
 	OUT TWCR, R16
 	MOV R2, R16
+	CLR R0
 
     ;initialize others
     call LCD_INIT
@@ -377,7 +393,7 @@ start:
 
 forever:
      sbrs KEYBOARD_STATUS, BUFFER_CHANGED_BIT
-     rjmp forever
+     rjmp check_rcv
      cbr KEYBOARD_STATUS, 1 << BUFFER_CHANGED_BIT
      lds r24, BUFFER_READ_POSITION
      lds r23, BUFFER_WRITE_POSITION
@@ -436,6 +452,43 @@ forever:
      sts BUFFER_SYNC_POSITION, r23
   sync_changed:
      sei
+
+check_rcv:
+	; display incoming data
+	SBRS R0, 7
+	RJMP forever
+	
+	CLR R0
+	LDI lcd_temp, 0
+	CALL lcd_goto
+	
+	LDS R17, RCV_BUFFER_LEN
+	LDI R16, 0
+	LDI XH, HIGH(RCV_BUFFER)
+	LDI XL, LOW(RCV_BUFFER)
+	RJMP loop_test
+	
+loop:		
+	LD LCD_TEMP, X+
+	CALL lcd_d_send	
+	INC R16
+loop_test:
+	CP R16, R17
+	BRLT loop
+
+	LDI R17, 16
+	LDI LCD_TEMP, ' '
+	RJMP loop2_test
+loop2:
+	CALL lcd_d_send	
+	INC R16
+loop2_test:
+	CP R16, R17
+	BRLT loop2
+	
+	lds LCD_TEMP, BUFFER_READ_POSITION
+	subi LCD_TEMP, -0x41
+	call LCD_GOTO
 
 rjmp forever
 
