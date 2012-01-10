@@ -6,7 +6,7 @@
 ; Micro + software running
 ; ------------------------------------------------------------
 .MICRO "ATmega16"
-.PROGRAM "keyboard.asm" "lcd.asm" "wait.asm"
+.PROGRAM "keyboard.asm" "lcd.asm" "wait.asm" "i2c.asm"
 .TARGET "klawiatura.hex"
 
 .TRACE              ; Activate micro trace

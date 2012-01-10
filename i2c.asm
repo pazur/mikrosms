@@ -10,7 +10,7 @@
 .EQU SRG_DATA_ACK = $90
 .EQU SR_STOP = $A0
 
-.DEF I2C_TEMP = R20
+.DEF I2C_TEMP = R21
 
 i2c_start:
 	LDI r16, 1 << TWINT | 1 << TWEN | 1<<TWSTA
@@ -60,13 +60,6 @@ i2c_wait:
 
 i2c_error:
 	;handle error here
-	MOV R3, R16
-	LDI lcd_temp, $40
-	CALL lcd_goto
-	LDI lcd_temp, 'E'
-	CALL lcd_d_send
-	MOV lcd_temp, R3
-	CALL lcd_number
 	RET
 
 i2c_receive:
@@ -101,3 +94,4 @@ r_dat:
 	JMP i2c_received_data
 r_sto:
 	JMP i2c_received_stop
+

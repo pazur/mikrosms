@@ -1,5 +1,12 @@
 .include "C:\PROGRA~2\VMLAB\include\m16def.inc"
 
+.EQU ADDR1 = 0b00100011 ;17
+.EQU ADDR2 = 0b01010101 ;42
+
+; IMPORTANT SETTING
+.EQU I2C_ADDR_SELF =  ADDR1
+.EQU I2C_ADDR_OTHER = 0
+
 .DEF KEYBOARD_STATUS = r25
 .EQU MULTIPLE_CLICK_BIT = 0
 .EQU BUFFER_CHANGED_BIT = 1
@@ -19,17 +26,15 @@
 
 .CSEG
 reset:
-   rjmp start
-
-
+    rjmp start
 .ORG INT2addr
     rjmp key_pressed
-
 .ORG OVF0addr
     rjmp check_key_pressed
-
 .ORG OC1Aaddr
     rjmp multiple_click_time_over
+.org TWIaddr
+    rjmp i2c_receive_int
 
 .ORG 0x60
 .DSEG
@@ -38,9 +43,13 @@ reset:
     BUFFER_SYNC_POSITION: .BYTE 1
     BUFFER: .BYTE 16               ; 2 nibbles - higher buttonnumber lower timesclicked
 
+    RCV_BUFFER_LEN: .byte 1
+    RCV_BUFFER: .byte 16
+
 .CSEG
 .include "wait.asm"
 .include "lcd.asm"
+.include "i2c.asm"
 
 multiple_click_time_over:
     push r16
@@ -248,12 +257,48 @@ keyboard_scan: ; key in r16 ; uses r16, r17
   no_key_pressed:
     ret
 
+
+
+i2c_receive_int:
+	push r16
+	in r16, SREG
+	push r16
+	
+	CALL i2c_receive	
+	
+	POP R16
+	OUT SREG, R16
+	POP R16
+	RETI
+
+i2c_received_start:	
+	RJMP i2c_receive_end
+
+i2c_received_data:	
+	RJMP i2c_receive_end
+
+i2c_received_stop:
+	RJMP i2c_receive_end
+
+
+
 start:
     ;initialize stack
     ldi r16, low(RAMEND)
     out spl, r16
     ldi r16, high(RAMEND)
     out sph, r16
+
+    ;CONFIG I2C
+	LDI R16, 32
+	OUT TWBR, R16 ;by miec 100kHz
+	LDI R16, I2C_ADDR_SELF
+	OUT TWAR, R16
+	LDI R16, 1 << TWEA | 1 << TWEN | 1 << TWIE ;| 1 << TWSTO
+	OUT TWCR, R16
+	MOV R2, R16
+
+    ;initialize others
     call LCD_INIT
     call keyboard_init
 
