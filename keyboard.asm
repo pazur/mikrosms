@@ -323,6 +323,9 @@ start:
 
     ;initialize others
     call LCD_INIT
+    ldi LCD_TEMP, 0x40
+    call lcd_goto
+
     call keyboard_init
 
     ; int2 on 1-->0
@@ -385,6 +388,7 @@ forever:
      breq write_buffer
      mov r16, r22
      inc r16
+     subi r16, -0x40
      mov LCD_TEMP, r16
      call lcd_goto
      ldi LCD_TEMP, ' '
@@ -395,6 +399,7 @@ forever:
      brne clear_char
   set_position:
      mov LCD_TEMP, r16
+     subi r16, -0x40
      call lcd_goto
      cpi r23, -1
      breq buffer_written_to_lcd
