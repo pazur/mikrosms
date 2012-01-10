@@ -338,6 +338,9 @@ start:
 	CLR R0
 
     ;initialize others
+    SBI DDRB, PB0
+    SBI PORTB, PB0
+
     call LCD_INIT
     ldi LCD_TEMP, 0x40
     call lcd_goto
@@ -490,6 +493,9 @@ loop2_test:
 	subi LCD_TEMP, -0x41
 	call LCD_GOTO
 
+   cbi PORTB, PB0
+   WAITMS 10
+   sbi PORTB, PB0
 rjmp forever
 
 get_button: ; r16 - key number, r17 times clicked (0 == number of signs)
