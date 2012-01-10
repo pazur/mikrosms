@@ -105,7 +105,9 @@ check_key_pressed:
         sts BUFFER_WRITE_POSITION, r18
         lds r17, BUFFER_SYNC_POSITION
         cp r17, r18
-        brlt check_key_pressed_clean
+        brge store_sync_position
+        jmp check_key_pressed_clean
+        store_sync_position:
         sts BUFFER_SYNC_POSITION, r18
         rjmp check_key_pressed_clean
     check_send_button:
@@ -113,7 +115,23 @@ check_key_pressed:
     brne char_clicked
         ; TODO RUN SEND
         cpi r18, -1
-        BREQ check_key_pressed_clean
+        BRNE run_send
+        JMP check_key_pressed_clean
+        run_send:
+        CALL i2c_start
+        LDI I2C_TEMP, I2C_ADDR_OTHER
+        CALL i2c_send_addr
+        ldi XH, high(RCV_BUFFER)
+        ldi XL, low(RCV_BUFFER)
+        send_i2c_byte:
+          LD I2C_TEMP, X+
+          CALL i2c_send_data
+          dec r18
+          cpi r18, -1
+          brne send_i2c_byte
+        CALL i2c_stop
+        OUT TWCR, R2
+
         ldi r16, -1
         sts BUFFER_WRITE_POSITION, r16
         sts BUFFER_SYNC_POSITION, r16
