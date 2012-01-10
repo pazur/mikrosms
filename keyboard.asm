@@ -254,7 +254,7 @@ start:
     out spl, r16
     ldi r16, high(RAMEND)
     out sph, r16
-    call lcd_init
+    call LCD_INIT
     call keyboard_init
 
     ; int2 on 1-->0
@@ -315,24 +315,19 @@ forever:
      ldi XH, high(BUFFER)
      cp r22, r24
      breq write_buffer
-     cbi LCD_RS_PORT, LCD_RS
      mov r16, r22
      inc r16
-     sbr r16, 1 << 7
-     mov r17, r16
-     call lcd_send_byte
-     sbi LCD_RS_PORT, LCD_RS
-     ldi r16, ' '
+     mov LCD_TEMP, r16
+     call lcd_goto
+     ldi LCD_TEMP, ' '
   clear_char:
-     call lcd_send_byte
+     call lcd_d_send
      dec r24
      cp r22, r24
      brne clear_char
   set_position:
-     cbi LCD_RS_PORT, LCD_RS
-     mov r16, r17
-     call lcd_send_byte
-     sbi LCD_RS_PORT, LCD_RS
+     mov LCD_TEMP, r16
+     call lcd_goto
      cpi r23, -1
      breq buffer_written_to_lcd
   write_buffer:
@@ -342,10 +337,8 @@ forever:
      add XL, r24
      ldi r16, 0
      adc XH, r16
-     cbi LCD_RS_PORT, LCD_RS
-     ldi r16, 0b00010000
-     call lcd_send_byte
-     sbi LCD_RS_PORT, LCD_RS
+     ldi LCD_TEMP, 0b00010000
+     call lcd_i_send
      dec r24
   write_letter:
      inc r24
@@ -357,7 +350,8 @@ forever:
      call get_button
 
      ;; go 1 letter back
-     call lcd_send_byte
+     mov LCD_TEMP, r16
+     call lcd_d_send
      cp r24, r23
      brlo write_letter
   buffer_written_to_lcd:
@@ -432,5 +426,7 @@ keyboard_layout:
     .DW button_4, button_5, button_6, button_7
     .DW button_8, button_9, button_10, button_11
     .DW button_12, button_13, button_14, button_15
+
+
 
 

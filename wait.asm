@@ -1,32 +1,36 @@
-wait:
-	DEC R16
-	BRNE wait
+; ******************************************************
+; Procedury opozniajace
+; ******************************************************
+
+.MACRO WAITUS 		;czeka @0+3/8 mikrosekund
+	LDI R26, LOW(@0)
+	LDI R27, HIGH(@0)
+	SBIW R27:R26, 1
+	CALL wait_us
+.ENDMACRO
+wait_us:
+	SBIW R27:R26, 1
+	ADIW R27:R26, 1 ;mozna by tu dac nopy
+	SBIW R27:R26, 1
+	BRNE wait_us
 	RET
 
-wait_10us_loop:
-	LDI R16, 25
-	CALL wait
-	DEC R15
-	BRNE wait_10us_loop
-	RET	
-
-wait_10us: ;waits 10us * R16
-	PUSH R15
-	MOV R15, R16
-	CALL wait_10us_loop
-	POP R15
+.MACRO WAITMS
+	LDI R26, LOW(@0)
+	LDI R27, HIGH(@0)
+	RCALL wait_ms
+.ENDMACRO
+wait_ms:
+	PUSH R27
+	PUSH R26
+	WAITUS 998
+	POP R26
+	POP R27
+	SBIW R27:R26, 1
+	ADIW R27:R26, 1 ;ew nopy
+	SBIW R27:R26, 1
+	BRNE wait_ms
 	RET
 
-wait_ms_loop:
-	LDI R16, 100
-	CALL wait_10us
-	DEC R15
-	BRNE wait_ms_loop
-	RET
 
-wait_ms: ; waits R16 ms
-	PUSH R15
-	MOV R15, R16
-	CALL wait_ms_loop
-	POP R15
-	RET
+
