@@ -113,7 +113,6 @@ check_key_pressed:
     check_send_button:
     cpi r16, 15 << 4
     brne char_clicked
-        ; TODO RUN SEND
         cpi r18, -1
         BRNE run_send
         JMP check_key_pressed_clean
@@ -121,10 +120,16 @@ check_key_pressed:
         CALL i2c_start
         LDI I2C_TEMP, I2C_ADDR_OTHER
         CALL i2c_send_addr
-        ldi XH, high(RCV_BUFFER)
-        ldi XL, low(RCV_BUFFER)
+        ldi XH, high(BUFFER)
+        ldi XL, low(BUFFER)
         send_i2c_byte:
-          LD I2C_TEMP, X+
+          LD r16, X+
+          mov r17, r16
+          cbr r17, 0xF0
+          swap r16
+          cbr r16, 0xF0
+          call get_button
+          mov I2C_TEMP, r16
           CALL i2c_send_data
           dec r18
           cpi r18, -1
